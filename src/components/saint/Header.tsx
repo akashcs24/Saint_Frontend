@@ -102,64 +102,85 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto grid max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="min-w-0">
-          <SaintLogo />
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <ServerStatusLight />
-          <div className="flex flex-col items-end leading-tight">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {refreshing ? "Status" : "Last updated"}
-            </span>
-            {refreshing ? (
-              <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
-                Refreshing…
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 shrink">
+            <SaintLogo />
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+            <ServerStatusLight />
+            {/* Desktop: updated time beside controls */}
+            <div className="hidden flex-col items-end leading-tight sm:flex">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {refreshing ? "Status" : "Last updated"}
               </span>
-            ) : (
-              <span className="font-mono text-sm font-medium tabular-nums text-foreground">
-                <span className="hidden sm:inline">{updatedTimeStr} </span>
-                <span className="text-[10px] font-normal text-muted-foreground">
-                  <span className="hidden sm:inline">IST · </span>
-                  {lastUpdated ? formatAgo(secondsAgo) : ""}
+              {refreshing ? (
+                <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
+                  Refreshing…
                 </span>
+              ) : (
+                <span className="font-mono text-sm font-medium tabular-nums text-foreground">
+                  {updatedTimeStr}{" "}
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    IST · {lastUpdated ? formatAgo(secondsAgo) : ""}
+                  </span>
+                </span>
+              )}
+            </div>
+            <button
+              aria-label="Refresh data"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-70 sm:px-3"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">{refreshing ? "Refreshing" : "Refresh"}</span>
+            </button>
+            <div
+              className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium sm:gap-2 sm:px-3 ${
+                open
+                  ? "border-transparent bg-bull-soft text-bull"
+                  : "border-border bg-muted text-muted-foreground"
+              }`}
+              title="NSE cash: Mon–Fri 09:15–15:30 IST"
+            >
+              {open ? (
+                <span className="live-dot" />
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
+              )}
+              <span className="hidden sm:inline">{open ? "Market Open" : "Market Closed"}</span>
+              <span className="sm:hidden">{open ? "Open" : "Closed"}</span>
+            </div>
+            <HelpGuide page={guide} />
+            <button
+              aria-label="Toggle theme"
+              onClick={toggleTheme}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent"
+            >
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+        {/* Mobile: updated line under logo/actions so it never overlaps */}
+        <div className="flex items-center justify-between gap-2 sm:hidden">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            {refreshing ? "Status" : "Last updated"}
+          </span>
+          {refreshing ? (
+            <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
+              Refreshing…
+            </span>
+          ) : (
+            <span className="font-mono text-xs font-medium tabular-nums text-foreground">
+              {updatedTimeStr}{" "}
+              <span className="font-normal text-muted-foreground">
+                IST · {lastUpdated ? formatAgo(secondsAgo) : ""}
               </span>
-            )}
-          </div>
-          <button
-            aria-label="Refresh data"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-70"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{refreshing ? "Refreshing" : "Refresh"}</span>
-          </button>
-          <div
-            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
-              open
-                ? "border-transparent bg-bull-soft text-bull"
-                : "border-border bg-muted text-muted-foreground"
-            }`}
-            title="NSE cash: Mon–Fri 09:15–15:30 IST"
-          >
-            {open ? (
-              <span className="live-dot" />
-            ) : (
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
-            )}
-            <span className="hidden sm:inline">{open ? "Market Open" : "Market Closed"}</span>
-            <span className="sm:hidden">{open ? "Open" : "Closed"}</span>
-          </div>
-          <HelpGuide page={guide} />
-          <button
-            aria-label="Toggle theme"
-            onClick={toggleTheme}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent"
-          >
-            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
+            </span>
+          )}
         </div>
       </div>
     </header>
