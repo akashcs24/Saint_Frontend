@@ -117,6 +117,17 @@ function StockCard({ s }: { s: StockRow }) {
               {s.actionNote}
             </div>
           ) : null}
+          {s.actionConfirm && s.actionConfirm !== "n/a" && s.actionConfirm !== "confirmed" ? (
+            <div
+              className={`mt-1 inline-flex rounded-md px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                s.actionConfirm === "awaiting"
+                  ? "bg-gold-soft text-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {s.actionConfirm === "awaiting" ? "Awaiting vol confirm" : "Vol demoted"}
+            </div>
+          ) : null}
         </div>
       </div>
 

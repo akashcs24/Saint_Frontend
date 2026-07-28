@@ -196,6 +196,11 @@ export interface StockRow {
   bias: SentimentBias;
   action: ActionHint;
   actionNote?: string | null;
+  /** Volume/price confirmation on Action: confirmed | awaiting | demoted | n/a */
+  actionConfirm?: "confirmed" | "awaiting" | "demoted" | "n/a" | string | null;
+  actionConfirmReasons?: string[];
+  actionConfirmOk?: boolean;
+  closedSessionNews?: boolean;
   moveSinceNewsPct?: number | null;
   /** Evidence strength behind the read, 0–100. */
   conviction?: number;
