@@ -1,9 +1,10 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Header } from "@/components/saint/Header";
 import { SessionBoard } from "@/components/saint/SessionBoard";
 import { MarketContextPanel } from "@/components/saint/MarketContextPanel";
-import { fetchDashboard } from "@/lib/api";
+import { DASHBOARD_QUERY_KEY, fetchDashboard, type DashboardPayload } from "@/lib/api";
 import type { SessionBuckets, StockRow } from "@/lib/market-data";
 
 /** Default poll; open-window uses session.refreshHintMs (~30s). */
@@ -11,6 +12,24 @@ const DEFAULT_REFRESH_MS = 5 * 60 * 1000;
 
 function emptyBuckets(): SessionBuckets {
   return { next_session: [], live_session: [], already_reacted: [] };
+}
+
+function emptyDashboard(): DashboardPayload {
+  return {
+    asOf: new Date().toISOString(),
+    indices: [],
+    buckets: emptyBuckets(),
+    topStocks: [],
+    morningBrief: {
+      generatedAt: new Date().toISOString(),
+      headline: "Loading market board…",
+      bullets: ["Waking the API and pulling news / quotes."],
+    },
+    news: [],
+    macro: [],
+    accuracy: null,
+    niftyBreadth: null,
+  };
 }
 
 function bucketsFromPayload(topStocks: StockRow[], buckets?: SessionBuckets): SessionBuckets {
@@ -30,33 +49,53 @@ function bucketsFromPayload(topStocks: StockRow[], buckets?: SessionBuckets): Se
   return out;
 }
 
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-md bg-muted/70 ${className}`} />;
+}
+
+function BoardSkeleton() {
+  return (
+    <div className="flex h-full min-h-[70vh] flex-col gap-3 rounded-xl border border-border/80 bg-card/30 p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-3">
+        <SkeletonBlock className="h-4 w-40" />
+        <SkeletonBlock className="h-8 w-48" />
+      </div>
+      <div className="space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 rounded-lg border border-border/50 px-3 py-3"
+          >
+            <SkeletonBlock className="h-8 w-1 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <SkeletonBlock className="h-3 w-24" />
+              <SkeletonBlock className="h-3 w-[75%] max-w-md" />
+            </div>
+            <SkeletonBlock className="h-6 w-16" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContextSkeleton() {
+  return (
+    <div className="space-y-3 rounded-xl border border-border px-3 py-3">
+      <SkeletonBlock className="h-4 w-28" />
+      <SkeletonBlock className="h-24 w-full" />
+      <SkeletonBlock className="h-4 w-24" />
+      <SkeletonBlock className="h-20 w-full" />
+      <SkeletonBlock className="h-4 w-32" />
+      <SkeletonBlock className="h-28 w-full" />
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/")({
-  loader: () => fetchDashboard(),
-  staleTime: 45_000,
-  pendingMs: 200,
-  pendingComponent: () => (
-    <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-      <div className="text-center">
-        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
-        <p className="mt-3 text-sm text-muted-foreground">Waking server &amp; building board…</p>
-        <p className="mt-1 text-xs text-muted-foreground/80">
-          Free Render can take 30–90s on first open. Keep this tab open.
-        </p>
-      </div>
-    </div>
-  ),
-  errorComponent: ({ error }) => (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-serif text-2xl text-foreground">Backend required</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Saint has no fixture data. Start the API on port 8000 and ensure{" "}
-          <code className="font-mono text-xs">VITE_API_BASE_URL</code> is set.
-        </p>
-        <p className="mt-3 font-mono text-xs text-bear">{error.message}</p>
-      </div>
-    </div>
-  ),
+  // Shell paints immediately; React Query loads + retries the board.
+  loader: () => null,
+  pendingMs: 0,
   head: () => ({
     meta: [
       { title: "Saint — Market sentiment" },
@@ -78,39 +117,71 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const data = Route.useLoaderData();
-  const router = useRouter();
-  const refreshMs = data.session?.refreshHintMs ?? DEFAULT_REFRESH_MS;
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      void router.invalidate();
-    }, refreshMs);
-    return () => clearInterval(id);
-  }, [router, refreshMs]);
+  const { data, error, isPending, isFetching, failureCount, dataUpdatedAt } = useQuery({
+    queryKey: DASHBOARD_QUERY_KEY,
+    queryFn: () => fetchDashboard(false),
+    retry: true,
+    retryDelay: (n) => Math.min(8_000 + n * 2_000, 20_000),
+    refetchInterval: (query) => {
+      const payload = query.state.data;
+      return payload?.session?.refreshHintMs ?? DEFAULT_REFRESH_MS;
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 45_000,
+  });
 
   const buckets = useMemo(
-    () => bucketsFromPayload(data.topStocks ?? [], data.buckets),
-    [data.topStocks, data.buckets],
+    () => bucketsFromPayload(data?.topStocks ?? [], data?.buckets),
+    [data?.topStocks, data?.buckets],
   );
+
+  const showSkeleton = !data;
+  const waking = Boolean(error) || (isPending && !data) || (isFetching && !data);
+  const display = data ?? emptyDashboard();
 
   return (
     <div className="flex min-h-dvh flex-col bg-background lg:h-dvh lg:overflow-hidden">
       <Header guide="dashboard" />
+      {waking ? (
+        <div className="border-b border-gold/30 bg-gold-soft/40 px-3 py-2 text-center text-xs text-foreground sm:px-6">
+          <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
+            <span>
+              {error
+                ? `Server waking / busy — retrying${failureCount ? ` (${failureCount})` : ""}…`
+                : "Loading board…"}
+            </span>
+            <span className="text-muted-foreground">
+              Layout is ready; numbers fill in when the API responds.
+            </span>
+          </span>
+        </div>
+      ) : isFetching && dataUpdatedAt ? (
+        <div className="border-b border-border/60 bg-muted/30 px-3 py-1.5 text-center text-[11px] text-muted-foreground sm:px-6">
+          Refreshing board in background…
+        </div>
+      ) : null}
       <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-6 sm:py-5 lg:min-h-0 lg:overflow-hidden lg:px-6">
-        {/* Mobile: boards first; context collapsed. Desktop: 70/30. */}
         <div className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:grid lg:grid-cols-10 lg:gap-5 lg:overflow-hidden">
           <div className="min-h-[70vh] lg:col-span-7 lg:min-h-0 lg:overflow-hidden">
-            <SessionBoard buckets={buckets} marketOpen={data.session?.open} />
+            {showSkeleton ? (
+              <BoardSkeleton />
+            ) : (
+              <SessionBoard buckets={buckets} marketOpen={display.session?.open} />
+            )}
           </div>
           <div className="shrink-0 lg:col-span-3 lg:min-h-0 lg:overflow-hidden">
-            <MarketContextPanel
-              indices={data.indices}
-              brief={data.morningBrief}
-              news={data.news}
-              accuracy={data.accuracy}
-              niftyBreadth={data.niftyBreadth}
-            />
+            {showSkeleton ? (
+              <ContextSkeleton />
+            ) : (
+              <MarketContextPanel
+                indices={display.indices}
+                brief={display.morningBrief}
+                news={display.news}
+                accuracy={display.accuracy}
+                niftyBreadth={display.niftyBreadth}
+              />
+            )}
           </div>
         </div>
       </main>

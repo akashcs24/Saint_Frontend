@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Moon, RefreshCw, Sun } from "lucide-react";
-import { useRouter } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { SaintLogo } from "./Logo";
 import { HelpGuide, type HelpGuidePage } from "./HelpGuide";
 import { ServerStatusLight } from "./ServerStatusLight";
-import { fetchDashboard } from "@/lib/api";
+import { DASHBOARD_QUERY_KEY, fetchDashboard } from "@/lib/api";
 
 const IST = "Asia/Kolkata";
 
@@ -49,7 +49,7 @@ function formatAgo(seconds: number) {
 }
 
 export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [dark, setDark] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -81,14 +81,13 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      // Soft refresh — serve cached board instantly; server rebuilds in background.
-      // (Force rebuild is too slow on free Yahoo/Render for a button tap.)
+      // Soft refresh — SWR cache on server; update React Query board.
       try {
-        await fetchDashboard(false);
+        const next = await fetchDashboard(false);
+        queryClient.setQueryData(DASHBOARD_QUERY_KEY, next);
       } catch {
-        /* still invalidate so UI retries */
+        await queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY });
       }
-      await router.invalidate();
     } finally {
       setLastUpdated(new Date());
       setTimeout(() => setRefreshing(false), 500);

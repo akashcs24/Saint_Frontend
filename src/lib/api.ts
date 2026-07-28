@@ -37,6 +37,8 @@ export type {
   StockRow,
 } from "@/lib/market-data";
 
+export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
+
 export interface DashboardPayload {
   asOf: string;
   session?: SessionInfo;
