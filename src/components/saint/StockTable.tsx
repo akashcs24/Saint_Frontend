@@ -45,6 +45,13 @@ function fmtInt(n: number) {
   return Math.round(n).toLocaleString("en-IN");
 }
 
+function volFlagClass(tone?: string) {
+  if (tone === "bull") return "bg-bull-soft text-bull ring-1 ring-bull/30";
+  if (tone === "warn") return "bg-amber-500/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/30";
+  if (tone === "gold") return "bg-gold-soft text-foreground ring-1 ring-gold/30";
+  return "bg-muted text-muted-foreground ring-1 ring-border";
+}
+
 function StockCard({ s }: { s: StockRow }) {
   const up = s.changePct >= 0;
   const vol = s.volume * 100000;
@@ -52,6 +59,9 @@ function StockCard({ s }: { s: StockRow }) {
   const diff = vol - avg;
   const diffPct = avg ? (diff / avg) * 100 : 0;
   const diffUp = diff >= 0;
+  const flags = (s.volFlags || []).filter(
+    (f) => f.key !== "awaiting" && f.key !== "demoted",
+  );
   return (
     <Link
       to="/stocks/$symbol"
@@ -75,6 +85,14 @@ function StockCard({ s }: { s: StockRow }) {
                 {s.thesisHealth}
               </span>
             ) : null}
+            {flags.slice(0, 2).map((f) => (
+              <span
+                key={f.key}
+                className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${volFlagClass(f.tone)}`}
+              >
+                {f.label}
+              </span>
+            ))}
           </div>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{s.name}</p>
         </div>

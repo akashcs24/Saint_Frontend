@@ -93,6 +93,11 @@ function DashboardHelp() {
           exit note — don’t keep a Buy lit after the path kills the overnight call.
         </p>
         <p>
+          <Tag tone="gold">Vol confirming</Tag> / <Tag>No demand</Tag> / <Tag tone="bull">Open flow</Tag> /
+          <Tag tone="gold">Awaiting confirm</Tag> — volume/price confirmation layer on Action (not Bias).
+          Buy long/short only lights when tape agrees; Telegram ENTRY follows the same gate.
+        </p>
+        <p>
           Green/red % next to price — <strong className="font-medium text-foreground">actual</strong> day
           move (price can still go red).
         </p>

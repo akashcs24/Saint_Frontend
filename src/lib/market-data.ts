@@ -201,6 +201,8 @@ export interface StockRow {
   actionConfirmReasons?: string[];
   actionConfirmOk?: boolean;
   closedSessionNews?: boolean;
+  /** Volume/price confirmation chips for the board. */
+  volFlags?: { key: string; label: string; tone?: string }[];
   moveSinceNewsPct?: number | null;
   /** Evidence strength behind the read, 0–100. */
   conviction?: number;
