@@ -133,13 +133,15 @@ export async function fetchHealth(timeoutMs = 45_000): Promise<ServerHealth> {
 
 export async function fetchDashboard(force = false): Promise<DashboardPayload> {
   const q = force ? "?force=true" : "";
-  // Wake free-tier Render with a cheap /health before the heavy dashboard.
+  // Cheap wake — ~0.5s when warm; starts free Render when cold.
   try {
-    await fetchHealth(90_000);
+    await fetchHealth(force ? 90_000 : 45_000);
   } catch {
-    // Continue — dashboard call may still succeed once the instance is up.
+    /* continue */
   }
-  return apiGet<DashboardPayload>(`/api/dashboard${q}`, undefined, 180_000);
+  // Soft loads expect SWR cache (fast). Force still returns stale instantly on
+  // server, but allow longer wait on true cold start.
+  return apiGet<DashboardPayload>(`/api/dashboard${q}`, undefined, force ? 180_000 : 120_000);
 }
 
 export async function fetchStockDetail(symbol: string): Promise<StockDetailPayload> {

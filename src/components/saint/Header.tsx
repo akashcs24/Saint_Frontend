@@ -81,9 +81,10 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      // Bypass server dashboard cache, then reload route loaders.
+      // Soft refresh — serve cached board instantly; server rebuilds in background.
+      // (Force rebuild is too slow on free Yahoo/Render for a button tap.)
       try {
-        await fetchDashboard(true);
+        await fetchDashboard(false);
       } catch {
         /* still invalidate so UI retries */
       }
