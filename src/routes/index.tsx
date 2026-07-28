@@ -38,7 +38,10 @@ export const Route = createFileRoute("/")({
     <div className="flex min-h-dvh items-center justify-center bg-background px-4">
       <div className="text-center">
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
-        <p className="mt-3 text-sm text-muted-foreground">Loading dashboard…</p>
+        <p className="mt-3 text-sm text-muted-foreground">Waking server &amp; building board…</p>
+        <p className="mt-1 text-xs text-muted-foreground/80">
+          Free Render can take 30–90s on first open. Keep this tab open.
+        </p>
       </div>
     </div>
   ),

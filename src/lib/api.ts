@@ -81,18 +81,38 @@ export function isApiConfigured(): boolean {
   return Boolean(API_BASE);
 }
 
-async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
+async function apiGet<T>(path: string, init?: RequestInit, timeoutMs = 120_000): Promise<T> {
   if (!API_BASE) {
     throw new Error("VITE_API_BASE_URL is not set. Start the backend and configure .env.local.");
   }
-  const res = await fetch(`${API_BASE}${path}`, init);
-  if (res.status === 404) {
-    throw new Error("NOT_FOUND");
+  const ctrl = new AbortController();
+  const userSignal = init?.signal;
+  const onAbort = () => ctrl.abort();
+  if (userSignal) {
+    if (userSignal.aborted) ctrl.abort();
+    else userSignal.addEventListener("abort", onAbort, { once: true });
   }
-  if (!res.ok) {
-    throw new Error(`API ${path} failed: ${res.status}`);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, signal: ctrl.signal });
+    if (res.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    if (!res.ok) {
+      throw new Error(`API ${path} failed: ${res.status}`);
+    }
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(
+        "Server is waking or dashboard is still building (free Render can take 1–2 min). Wait and refresh.",
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    userSignal?.removeEventListener("abort", onAbort);
   }
-  return (await res.json()) as T;
 }
 
 export type ServerHealth = { ok: boolean };
@@ -113,7 +133,13 @@ export async function fetchHealth(timeoutMs = 45_000): Promise<ServerHealth> {
 
 export async function fetchDashboard(force = false): Promise<DashboardPayload> {
   const q = force ? "?force=true" : "";
-  return apiGet<DashboardPayload>(`/api/dashboard${q}`);
+  // Wake free-tier Render with a cheap /health before the heavy dashboard.
+  try {
+    await fetchHealth(90_000);
+  } catch {
+    // Continue — dashboard call may still succeed once the instance is up.
+  }
+  return apiGet<DashboardPayload>(`/api/dashboard${q}`, undefined, 180_000);
 }
 
 export async function fetchStockDetail(symbol: string): Promise<StockDetailPayload> {
