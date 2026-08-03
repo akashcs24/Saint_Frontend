@@ -471,7 +471,9 @@ function NiftyPage() {
     queryFn: () => fetchNiftyBoard(false),
     // No overnight polling — resume at 09:14 IST.
     refetchInterval: (query) => {
-      const paused = query.state.data?.liveDataPaused;
+      const d = query.state.data;
+      if (d?.building || d?.stale || (d && !d.breadth?.ready)) return 5_000;
+      const paused = d?.liveDataPaused;
       if (paused === true) return false;
       if (paused === false) return REFRESH_MS;
       return isLiveDataWindow() ? REFRESH_MS : false;
@@ -506,7 +508,16 @@ function NiftyPage() {
             </CardContent>
           </Card>
         ) : data ? (
-          <NiftyCards data={data} refreshing={q.isFetching} />
+          <>
+            {(data.building || data.stale || !data.breadth?.ready) && (
+              <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+                {data.building
+                  ? "Building market board on the server (free Render can take 1–2 min on cold start)…"
+                  : data.error || "Refreshing market data…"}
+              </p>
+            )}
+            <NiftyCards data={data} refreshing={q.isFetching} />
+          </>
         ) : null}
       </main>
     </div>

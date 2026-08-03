@@ -480,6 +480,10 @@ export interface NiftyBoardPayload {
   };
   insights: string[];
   paperTrades?: NiftyPaperTickPayload | null;
+  building?: boolean;
+  stale?: boolean;
+  error?: string | null;
+  cacheAgeS?: number;
 }
 
 export interface NiftyPaperTradeRow {
@@ -607,15 +611,27 @@ export async function fetchNiftyPaperTrades(): Promise<NiftyPaperBoardPayload> {
 
 export async function tickNiftyPaperTrades(force = true): Promise<NiftyPaperTickPayload> {
   if (!API_BASE) throw new Error("VITE_API_BASE_URL is not set.");
-  const res = await fetch(`${API_BASE}/api/nifty/paper-trades/tick?force=${force ? "true" : "false"}`, {
-    method: "POST",
-  });
-  const body = (await res.json().catch(() => ({}))) as NiftyPaperTickPayload & { detail?: string };
-  if (!res.ok) {
-    throw new Error(typeof body.detail === "string" ? body.detail : `Paper tick failed: ${res.status}`);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 90_000);
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/nifty/paper-trades/tick?force=${force ? "true" : "false"}`,
+      { method: "POST", signal: ctrl.signal },
+    );
+    const body = (await res.json().catch(() => ({}))) as NiftyPaperTickPayload & { detail?: string };
+    if (!res.ok) {
+      throw new Error(typeof body.detail === "string" ? body.detail : `Paper tick failed: ${res.status}`);
+    }
+    if (body.ok === false) {
+      throw new Error(body.error || "ATM CE quote unavailable (need Fyers)");
+    }
+    return body;
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Paper tick timed out — Render may still be waking. Try again in a moment.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  if (body.ok === false) {
-    throw new Error(body.error || "ATM CE quote unavailable (need Fyers)");
-  }
-  return body;
 }
