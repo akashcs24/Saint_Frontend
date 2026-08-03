@@ -1,9 +1,8 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
-import type { AccuracySummary, IndexQuote, MorningBriefData, NewsItem, NiftyBreadth } from "@/lib/market-data";
+import type { AccuracySummary, IndexQuote, MorningBriefData, NewsItem } from "@/lib/market-data";
 import { MorningBrief } from "@/components/saint/MorningBrief";
 import { NewsFeed } from "@/components/saint/NewsFeed";
 import { AccuracyScorecard } from "@/components/saint/AccuracyScorecard";
-import { NiftyBreadthCard } from "@/components/saint/NiftyBreadthCard";
 import {
   Accordion,
   AccordionContent,
@@ -78,22 +77,14 @@ function ContextSections({
   brief,
   news,
   accuracy,
-  niftyBreadth,
 }: {
   indices: IndexQuote[];
   brief: MorningBriefData;
   news: NewsItem[];
   accuracy?: AccuracySummary | null;
-  niftyBreadth?: NiftyBreadth | null;
 }) {
   return (
-    <Accordion type="multiple" defaultValue={["breadth", "track"]} className="rounded-xl border border-border px-2">
-      <AccordionItem value="breadth">
-        <AccordionTrigger className="py-2.5 text-xs hover:no-underline">Nifty breadth</AccordionTrigger>
-        <AccordionContent className="pb-2">
-          <NiftyBreadthCard breadth={niftyBreadth} />
-        </AccordionContent>
-      </AccordionItem>
+    <Accordion type="multiple" defaultValue={["track"]} className="rounded-xl border border-border px-2">
       <AccordionItem value="track">
         <AccordionTrigger className="py-2.5 text-xs hover:no-underline">Track record</AccordionTrigger>
         <AccordionContent className="pb-2">
@@ -131,13 +122,14 @@ export function MarketContextPanel({
   brief,
   news,
   accuracy,
-  niftyBreadth,
+  compact = false,
 }: {
   indices: IndexQuote[];
   brief: MorningBriefData;
   news: NewsItem[];
   accuracy?: AccuracySummary | null;
-  niftyBreadth?: NiftyBreadth | null;
+  /** Tighter chrome when seated beside session boards */
+  compact?: boolean;
 }) {
   const isMobile = useIsMobile();
 
@@ -155,13 +147,7 @@ export function MarketContextPanel({
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-3 pb-3 sm:px-4">
-              <ContextSections
-                indices={indices}
-                brief={brief}
-                news={news}
-                accuracy={accuracy}
-                niftyBreadth={niftyBreadth}
-              />
+              <ContextSections indices={indices} brief={brief} news={news} accuracy={accuracy} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -170,20 +156,25 @@ export function MarketContextPanel({
   }
 
   return (
-    <aside className="card-elevated flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="border-b border-border px-4 py-3 sm:px-5">
-        <h2 className="font-serif text-xl text-foreground">Market context</h2>
+    <aside
+      className={`card-elevated flex h-full min-h-0 flex-col overflow-hidden ${
+        compact ? "" : ""
+      }`}
+    >
+      <div className={`border-b border-border ${compact ? "px-3 py-2.5" : "px-4 py-3 sm:px-5"}`}>
+        <h2 className={`font-serif text-foreground ${compact ? "text-base" : "text-xl"}`}>
+          Market context
+        </h2>
         <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          Indices · breadth · track record · brief · pulse
+          Indices · track · brief · pulse
         </p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <CompactIndices indices={indices} />
-        <div className="space-y-3 p-3 sm:p-4">
-          <NiftyBreadthCard breadth={niftyBreadth} />
+        <div className={`space-y-3 ${compact ? "p-2.5" : "p-3 sm:p-4"}`}>
           <AccuracyScorecard accuracy={accuracy} embedded />
           <MorningBrief brief={brief} embedded />
-          <div className="min-h-[200px]">
+          <div className="min-h-[160px]">
             <NewsFeed items={news} embedded />
           </div>
         </div>

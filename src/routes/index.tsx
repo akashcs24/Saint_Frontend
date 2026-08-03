@@ -56,38 +56,17 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
 function BoardSkeleton() {
   return (
     <div className="flex h-full min-h-[70vh] flex-col gap-3 rounded-xl border border-border/80 bg-card/30 p-3 sm:p-4">
-      <div className="flex items-center justify-between gap-3">
-        <SkeletonBlock className="h-4 w-40" />
-        <SkeletonBlock className="h-8 w-48" />
-      </div>
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-3 rounded-lg border border-border/50 px-3 py-3"
-          >
-            <SkeletonBlock className="h-8 w-1 shrink-0" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <SkeletonBlock className="h-3 w-24" />
-              <SkeletonBlock className="h-3 w-[75%] max-w-md" />
-            </div>
-            <SkeletonBlock className="h-6 w-16" />
+      <SkeletonBlock className="h-10 w-full max-w-md" />
+      <div className="grid min-h-0 flex-1 gap-3 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="space-y-2 rounded-lg border border-border/50 p-3">
+            <SkeletonBlock className="h-4 w-32" />
+            {Array.from({ length: 4 }).map((_, j) => (
+              <SkeletonBlock key={j} className="h-10 w-full" />
+            ))}
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ContextSkeleton() {
-  return (
-    <div className="space-y-3 rounded-xl border border-border px-3 py-3">
-      <SkeletonBlock className="h-4 w-28" />
-      <SkeletonBlock className="h-24 w-full" />
-      <SkeletonBlock className="h-4 w-24" />
-      <SkeletonBlock className="h-20 w-full" />
-      <SkeletonBlock className="h-4 w-32" />
-      <SkeletonBlock className="h-28 w-full" />
     </div>
   );
 }
@@ -162,27 +141,24 @@ function Dashboard() {
         </div>
       ) : null}
       <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-6 sm:py-5 lg:min-h-0 lg:overflow-hidden lg:px-6">
-        <div className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:grid lg:grid-cols-10 lg:gap-5 lg:overflow-hidden">
-          <div className="min-h-[70vh] lg:col-span-7 lg:min-h-0 lg:overflow-hidden">
-            {showSkeleton ? (
-              <BoardSkeleton />
-            ) : (
-              <SessionBoard buckets={buckets} marketOpen={display.session?.open} />
-            )}
-          </div>
-          <div className="shrink-0 lg:col-span-3 lg:min-h-0 lg:overflow-hidden">
-            {showSkeleton ? (
-              <ContextSkeleton />
-            ) : (
-              <MarketContextPanel
-                indices={display.indices}
-                brief={display.morningBrief}
-                news={display.news}
-                accuracy={display.accuracy}
-                niftyBreadth={display.niftyBreadth}
-              />
-            )}
-          </div>
+        <div className="flex min-h-[70vh] flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
+          {showSkeleton ? (
+            <BoardSkeleton />
+          ) : (
+            <SessionBoard
+              buckets={buckets}
+              marketOpen={display.session?.open}
+              aside={
+                <MarketContextPanel
+                  indices={display.indices}
+                  brief={display.morningBrief}
+                  news={display.news}
+                  accuracy={display.accuracy}
+                  compact
+                />
+              }
+            />
+          )}
         </div>
       </main>
     </div>

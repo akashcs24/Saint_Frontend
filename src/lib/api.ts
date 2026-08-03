@@ -205,3 +205,417 @@ export async function fetchAiHelper(symbol: string, force = false): Promise<AiHe
   }
   return body;
 }
+
+export interface FyersStatus {
+  configured: boolean;
+  /** Token proven with Fyers (may still be after-hours with polling paused). */
+  connected: boolean;
+  /** Token on disk/memory — not sufficient alone for green. */
+  hasToken?: boolean;
+  marketHours?: boolean;
+  marketHoursLabel?: string | null;
+  /** Connected/token kept, but quote polling is paused until market hours. */
+  pausedOutsideHours?: boolean;
+  connectedAt?: string | null;
+  appIdSuffix?: string | null;
+  redirectUri?: string | null;
+  lastError?: string | null;
+  breadthSourceHint?: string | null;
+  url?: string;
+}
+
+export async function fetchFyersStatus(): Promise<FyersStatus> {
+  return apiGet<FyersStatus>("/api/fyers/status", undefined, 30_000);
+}
+
+export async function fetchFyersAuthUrl(): Promise<FyersStatus & { url: string }> {
+  return apiGet<FyersStatus & { url: string }>("/api/fyers/auth-url", undefined, 30_000);
+}
+
+export async function exchangeFyersCode(code: string): Promise<FyersStatus> {
+  if (!API_BASE) {
+    throw new Error("VITE_API_BASE_URL is not set.");
+  }
+  const res = await fetch(`${API_BASE}/api/fyers/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  const body = (await res.json().catch(() => ({}))) as FyersStatus & { detail?: string };
+  if (!res.ok) {
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : `Fyers exchange failed: ${res.status}`,
+    );
+  }
+  return body;
+}
+
+export async function logoutFyers(): Promise<FyersStatus> {
+  if (!API_BASE) {
+    throw new Error("VITE_API_BASE_URL is not set.");
+  }
+  const res = await fetch(`${API_BASE}/api/fyers/logout`, { method: "POST" });
+  const body = (await res.json().catch(() => ({}))) as FyersStatus & { detail?: string };
+  if (!res.ok) {
+    throw new Error(
+      typeof body.detail === "string" ? body.detail : `Fyers logout failed: ${res.status}`,
+    );
+  }
+  return body;
+}
+
+export const NIFTY_QUERY_KEY = ["nifty"] as const;
+
+export interface NiftyBoardDriver {
+  symbol: string;
+  changePct: number;
+  weight: number;
+  contributionPct: number;
+  side?: "up" | "down" | "flat";
+}
+
+export interface NiftyPcrHistoryRow {
+  bucketTs: number;
+  t: string;
+  asOf?: string;
+  oiPcr: number | null;
+  volumePcr?: number | null;
+  putOi?: number | null;
+  callOi?: number | null;
+  spot?: number | null;
+  lean?: string | null;
+  ceOiWing?: number | null;
+  peOiWing?: number | null;
+  ceOiChgWing?: number | null;
+  peOiChgWing?: number | null;
+  insight?: string | null;
+}
+
+export interface NiftyBreadthHistoryRow {
+  bucketTs: number;
+  t: string;
+  asOf?: string;
+  weightUp: number | null;
+  weightDown: number | null;
+  weightFlat?: number | null;
+  contributionPct?: number | null;
+  advances?: number | null;
+  declines?: number | null;
+  lean?: string | null;
+}
+
+export interface NiftyBoardPayload {
+  asOf: string;
+  fyersConnected?: boolean;
+  cached?: boolean;
+  marketHours?: boolean;
+  marketHoursLabel?: string | null;
+  liveDataPaused?: boolean;
+  index: {
+    ready: boolean;
+    key?: string;
+    name?: string;
+    ltp: number | null;
+    change?: number | null;
+    changePct: number | null;
+    previousClose?: number | null;
+    volume?: number | null;
+    source?: string | null;
+  };
+  breadth: {
+    ready: boolean;
+    advances?: number | null;
+    declines?: number | null;
+    unchanged?: number | null;
+    quoted?: number | null;
+    universe?: number | null;
+    weightUp?: number | null;
+    weightDown?: number | null;
+    weightFlat?: number | null;
+    contributionPct?: number | null;
+    lean?: string | null;
+    action?: string | null;
+    label?: string | null;
+    quoteSource?: string | null;
+    segments?: {
+      symbol: string;
+      changePct: number;
+      weight: number;
+      contributionPct: number;
+      side: "up" | "down" | "flat";
+    }[];
+    weightTrend?: {
+      up?: { m5?: string | null; m15?: string | null };
+      down?: { m5?: string | null; m15?: string | null };
+    };
+  };
+  breadthHistory?: NiftyBreadthHistoryRow[];
+  drivers: {
+    topUp: NiftyBoardDriver[];
+    topDown: NiftyBoardDriver[];
+  };
+  leadLag: {
+    ready: boolean;
+    baseline?: string;
+    basketMovePct: number | null;
+    indexMovePct: number | null;
+    indexVsBasketPp?: number | null;
+    indexVsBasketPts?: number | null;
+    syncBandPp?: number | null;
+    diffPp: number | null;
+    stance?: string;
+    verdict?: string;
+    label: string;
+    howToRead?: string;
+    syncInsight?: string;
+    note?: string;
+  };
+  futures?: {
+    ready: boolean;
+    symbol?: string;
+    expiry?: string;
+    expiryLabel?: string;
+    ltp?: number | null;
+    changePct?: number | null;
+    source?: string | null;
+    spot?: number | null;
+    basisPts?: number | null;
+    basisPct?: number | null;
+    basisStance?: string;
+    basisLabel?: string;
+    fairValue?: number | null;
+    vsFairPts?: number | null;
+    fvStance?: string;
+    fvLabel?: string;
+    daysToExpiry?: number | null;
+    label?: string;
+  };
+  stockFutBasket?: {
+    ready: boolean;
+    basketMovePct?: number | null;
+    quoted?: number;
+    universe?: number;
+    monthCode?: string;
+    expiryLabel?: string;
+    label?: string;
+    source?: string | null;
+  };
+  marketSync?: {
+    ready?: boolean;
+    syncBandPp?: number;
+    insight?: string;
+    howToRead?: string;
+    cash?: {
+      label?: string;
+      basketMovePct?: number | null;
+      niftyMovePct?: number | null;
+      niftyVsBasketPp?: number | null;
+      niftyVsBasketPts?: number | null;
+      stance?: string;
+      verdict?: string;
+    };
+    fo?: {
+      label?: string;
+      basketMovePct?: number | null;
+      niftyMovePct?: number | null;
+      niftyVsBasketPp?: number | null;
+      niftyVsBasketPts?: number | null;
+      stance?: string;
+      verdict?: string;
+      quoted?: number;
+      universe?: number;
+      monthCode?: string;
+      ready?: boolean;
+      note?: string;
+    };
+    cross?: {
+      label?: string;
+      diffPp?: number | null;
+      stance?: string;
+      verdict?: string;
+    };
+  };
+  pcr: {
+    ready: boolean;
+    oiPcr?: number | null;
+    volumePcr?: number | null;
+    putOi?: number | null;
+    callOi?: number | null;
+    lean?: string | null;
+    label?: string | null;
+    expiry?: string | null;
+    source?: string | null;
+  };
+  pcrHistory: NiftyPcrHistoryRow[];
+  optionOi: {
+    ready: boolean;
+    source?: string | null;
+    expiry?: string | null;
+    spot?: number | null;
+    atmStrike?: number | null;
+    ceOiWing?: number | null;
+    peOiWing?: number | null;
+    ceOiChgWing?: number | null;
+    peOiChgWing?: number | null;
+    plot: {
+      strike: number;
+      ceOi: number;
+      peOi: number;
+      ceOiChg: number;
+      peOiChg: number;
+      ceUnwind?: number;
+      peUnwind?: number;
+      ceBuild?: number;
+      peBuild?: number;
+      moneyness?: string;
+    }[];
+    rows?: unknown[];
+  };
+  oiInsight?: {
+    headline?: string;
+    sentiment?: string;
+    bullets?: string[];
+    source?: string;
+    metrics?: Record<string, unknown>;
+  };
+  insights: string[];
+  paperTrades?: NiftyPaperTickPayload | null;
+}
+
+export interface NiftyPaperTradeRow {
+  id: number;
+  strategyId?: string;
+  status: string;
+  side: string;
+  symbol: string;
+  strike?: number | null;
+  expiry?: string | null;
+  lot: number;
+  entryTs: string;
+  entryPx: number;
+  entrySpot?: number | null;
+  entryWeightUp?: number | null;
+  entryReason?: string | null;
+  exitTs?: string | null;
+  exitPx?: number | null;
+  exitSpot?: number | null;
+  exitWeightUp?: number | null;
+  exitReason?: string | null;
+  peakPx?: number | null;
+  pnlRs?: number | null;
+  pnlPct?: number | null;
+  marginRs?: number | null;
+}
+
+export interface NiftyPaperStrategyMeta {
+  id: string;
+  label: string;
+  entry?: string;
+  exit?: string;
+  exitMode?: string;
+  lot?: number;
+  side?: string;
+  tf?: string;
+}
+
+export interface NiftyPaperWallet {
+  startingCapitalRs?: number;
+  realizedPnlRs?: number;
+  unrealizedPnlRs?: number;
+  openMarginRs?: number | null;
+  cashRs?: number;
+  equityRs?: number;
+  returnPct?: number;
+  markSource?: string | null;
+  books?: number;
+  startingCapitalRsPerBook?: number;
+  mongoReady?: boolean;
+  storage?: string;
+}
+
+export interface NiftyPaperSummary {
+  strategy?: NiftyPaperStrategyMeta & {
+    tf?: string;
+    entry?: string;
+    exit?: string;
+    lot?: number;
+    side?: string;
+  };
+  open?: NiftyPaperTradeRow | null;
+  closedCount?: number;
+  wins?: number;
+  losses?: number;
+  netPnlRs?: number;
+  avgMarginRs?: number | null;
+  wallet?: NiftyPaperWallet;
+  storage?: string;
+  mongoReady?: boolean;
+}
+
+export interface NiftyPaperBucket {
+  strategyId: string;
+  summary: NiftyPaperSummary;
+  trades: NiftyPaperTradeRow[];
+}
+
+export interface NiftyPaperBoardPayload {
+  strategies: NiftyPaperStrategyMeta[];
+  buckets: NiftyPaperBucket[];
+  wallet?: NiftyPaperWallet;
+  storage?: string;
+  mongoReady?: boolean;
+  /** Back-compat (first bucket) */
+  summary?: NiftyPaperSummary;
+  trades?: NiftyPaperTradeRow[];
+}
+
+export interface NiftyPaperTickPayload extends NiftyPaperBoardPayload {
+  ok?: boolean;
+  error?: string;
+  skipped?: string;
+  events?: string[];
+  quote?: {
+    symbol?: string;
+    strike?: number;
+    expiry?: string | null;
+    ltp?: number;
+    spot?: number | null;
+    source?: string;
+  };
+  weightUpSeries?: number[];
+  rising3?: boolean;
+  falling4?: boolean;
+  crossDiffPp?: number | null;
+  liveDataWindow?: boolean;
+}
+
+export const NIFTY_PAPER_QUERY_KEY = ["nifty-paper-trades"] as const;
+
+export async function fetchNiftyBoard(force = false): Promise<NiftyBoardPayload> {
+  const q = force ? "?force=true" : "";
+  try {
+    await fetchHealth(force ? 90_000 : 45_000);
+  } catch {
+    /* continue */
+  }
+  return apiGet<NiftyBoardPayload>(`/api/nifty${q}`, undefined, force ? 180_000 : 90_000);
+}
+
+export async function fetchNiftyPaperTrades(): Promise<NiftyPaperBoardPayload> {
+  return apiGet("/api/nifty/paper-trades", undefined, 30_000);
+}
+
+export async function tickNiftyPaperTrades(force = true): Promise<NiftyPaperTickPayload> {
+  if (!API_BASE) throw new Error("VITE_API_BASE_URL is not set.");
+  const res = await fetch(`${API_BASE}/api/nifty/paper-trades/tick?force=${force ? "true" : "false"}`, {
+    method: "POST",
+  });
+  const body = (await res.json().catch(() => ({}))) as NiftyPaperTickPayload & { detail?: string };
+  if (!res.ok) {
+    throw new Error(typeof body.detail === "string" ? body.detail : `Paper tick failed: ${res.status}`);
+  }
+  if (body.ok === false) {
+    throw new Error(body.error || "ATM CE quote unavailable (need Fyers)");
+  }
+  return body;
+}

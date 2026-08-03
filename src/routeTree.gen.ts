@@ -10,11 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NiftyRouteImport } from './routes/nifty'
+import { Route as PaperRouteImport } from './routes/paper'
 import { Route as StocksSymbolRouteImport } from './routes/stocks.$symbol'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NiftyRoute = NiftyRouteImport.update({
+  id: '/nifty',
+  path: '/nifty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaperRoute = PaperRouteImport.update({
+  id: '/paper',
+  path: '/paper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StocksSymbolRoute = StocksSymbolRouteImport.update({
@@ -25,27 +37,35 @@ const StocksSymbolRoute = StocksSymbolRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/nifty': typeof NiftyRoute
+  '/paper': typeof PaperRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/nifty': typeof NiftyRoute
+  '/paper': typeof PaperRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/nifty': typeof NiftyRoute
+  '/paper': typeof PaperRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/stocks/$symbol'
+  fullPaths: '/' | '/nifty' | '/paper' | '/stocks/$symbol'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/stocks/$symbol'
-  id: '__root__' | '/' | '/stocks/$symbol'
+  to: '/' | '/nifty' | '/paper' | '/stocks/$symbol'
+  id: '__root__' | '/' | '/nifty' | '/paper' | '/stocks/$symbol'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NiftyRoute: typeof NiftyRoute
+  PaperRoute: typeof PaperRoute
   StocksSymbolRoute: typeof StocksSymbolRoute
 }
 
@@ -56,6 +76,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nifty': {
+      id: '/nifty'
+      path: '/nifty'
+      fullPath: '/nifty'
+      preLoaderRoute: typeof NiftyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paper': {
+      id: '/paper'
+      path: '/paper'
+      fullPath: '/paper'
+      preLoaderRoute: typeof PaperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stocks/$symbol': {
@@ -70,6 +104,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NiftyRoute: NiftyRoute,
+  PaperRoute: PaperRoute,
   StocksSymbolRoute: StocksSymbolRoute,
 }
 export const routeTree = rootRouteImport

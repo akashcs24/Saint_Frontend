@@ -174,6 +174,8 @@ export interface NiftyBreadth {
     down?: TrendArrows | null;
     up?: TrendArrows | null;
   } | null;
+  /** yahoo | fyers | fyers+yahoo */
+  quoteSource?: string | null;
 }
 
 export interface StockRow {

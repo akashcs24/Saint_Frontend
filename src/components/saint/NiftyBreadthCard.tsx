@@ -204,6 +204,9 @@ export function NiftyBreadthCard({ breadth }: { breadth?: NiftyBreadth | null })
           <p className="text-[10px] text-muted-foreground">
             Count · weight · PCR
             {breadth.ready ? ` · ${breadth.quoted}/${breadth.universe}` : ""}
+            {breadth.quoteSource
+              ? ` · ${breadth.quoteSource === "fyers" ? "Fyers live" : breadth.quoteSource}`
+              : ""}
           </p>
         </div>
         <span

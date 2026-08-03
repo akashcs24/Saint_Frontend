@@ -470,9 +470,12 @@ function usePinnedRows(bookmarks: string[], boardBySymbol: Map<string, StockRow>
 export function SessionBoard({
   buckets,
   marketOpen,
+  aside,
 }: {
   buckets: SessionBuckets;
   marketOpen?: boolean;
+  /** Rendered beside next/happening boards on desktop Live tab */
+  aside?: ReactNode;
 }) {
   useBookmarkStorageSync();
   const { symbols: bookmarks, toggle } = useBookmarks();
@@ -509,8 +512,8 @@ export function SessionBoard({
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <Tabs defaultValue={defaultBoard} className="flex h-full min-h-0 flex-col">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <TabsList className="h-auto gap-1 rounded-xl bg-muted/60 p-1">
+        <div className="mb-2 w-full shrink-0">
+          <TabsList className="h-auto w-full justify-start gap-1 rounded-xl bg-muted/60 p-1">
             <TabsTrigger value="live" className="rounded-lg px-4 text-xs sm:text-sm">
               Live
               <span className="ml-1.5 text-muted-foreground">({liveCount})</span>
@@ -520,23 +523,23 @@ export function SessionBoard({
               <span className="ml-1.5 text-muted-foreground">({reacted.length})</span>
             </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-3">
-            {bookmarks.length ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gold">
-                <Bookmark className="h-3 w-3 fill-current" />
-                {bookmarks.length} pinned
-              </span>
-            ) : null}
-            {marketOpen ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-bull">
-                <span className="live-dot" /> Live session
-              </span>
-            ) : (
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Market closed
-              </span>
-            )}
-          </div>
+        </div>
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-end gap-3">
+          {bookmarks.length ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gold">
+              <Bookmark className="h-3 w-3 fill-current" />
+              {bookmarks.length} pinned
+            </span>
+          ) : null}
+          {marketOpen ? (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-bull">
+              <span className="live-dot" /> Live session
+            </span>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Market closed
+            </span>
+          )}
         </div>
 
         <TabsContent value="live" className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden">
@@ -583,11 +586,12 @@ export function SessionBoard({
                   hideHeader
                 />
               </MobileBoardAccordion>
+              {aside ? <div className="shrink-0">{aside}</div> : null}
             </div>
           ) : (
             <div className="flex h-full min-h-0 flex-col gap-3 lg:gap-4">
               {bookmarks.length ? (
-                <div className="max-h-[40%] min-h-[120px] shrink-0 lg:max-h-[32%]">
+                <div className="max-h-[40%] min-h-[120px] shrink-0 lg:max-h-[28%]">
                   <BucketPanel
                     stocks={pinnedRows}
                     meta={PANEL.pinned}
@@ -597,7 +601,11 @@ export function SessionBoard({
                   />
                 </div>
               ) : null}
-              <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+              <div
+                className={`grid min-h-0 flex-1 grid-cols-1 gap-3 lg:gap-4 ${
+                  aside ? "xl:grid-cols-3" : "lg:grid-cols-2"
+                }`}
+              >
                 <BucketPanel
                   stocks={primaryLive}
                   meta={primaryMeta}
@@ -610,6 +618,7 @@ export function SessionBoard({
                   bookmarked={bookmarks}
                   onToggleBookmark={toggle}
                 />
+                {aside ? <div className="min-h-0 overflow-hidden">{aside}</div> : null}
               </div>
             </div>
           )}
@@ -640,25 +649,33 @@ export function SessionBoard({
                   hideHeader
                 />
               </MobileBoardAccordion>
+              {aside ? <div className="shrink-0">{aside}</div> : null}
             </div>
           ) : (
-            <div className="flex h-full min-h-0 flex-col gap-3 lg:gap-4">
-              <div className="min-h-0 flex-[1.15]">
-                <BucketPanel
-                  stocks={pastWatching}
-                  meta={PANEL.past_watching}
-                  bookmarked={bookmarks}
-                  onToggleBookmark={toggle}
-                />
+            <div
+              className={`grid h-full min-h-0 grid-cols-1 gap-3 lg:gap-4 ${
+                aside ? "xl:grid-cols-3" : "lg:grid-cols-1"
+              }`}
+            >
+              <div className={`flex min-h-0 flex-col gap-3 lg:gap-4 ${aside ? "xl:col-span-2" : ""}`}>
+                <div className="min-h-0 flex-[1.15]">
+                  <BucketPanel
+                    stocks={pastWatching}
+                    meta={PANEL.past_watching}
+                    bookmarked={bookmarks}
+                    onToggleBookmark={toggle}
+                  />
+                </div>
+                <div className="min-h-0 flex-1">
+                  <BucketPanel
+                    stocks={pastSettled}
+                    meta={PANEL.past_settled}
+                    bookmarked={bookmarks}
+                    onToggleBookmark={toggle}
+                  />
+                </div>
               </div>
-              <div className="min-h-0 flex-1">
-                <BucketPanel
-                  stocks={pastSettled}
-                  meta={PANEL.past_settled}
-                  bookmarked={bookmarks}
-                  onToggleBookmark={toggle}
-                />
-              </div>
+              {aside ? <div className="min-h-0 overflow-hidden">{aside}</div> : null}
             </div>
           )}
         </TabsContent>

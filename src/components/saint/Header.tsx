@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Moon, RefreshCw, Sun } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SaintLogo } from "./Logo";
 import { HelpGuide, type HelpGuidePage } from "./HelpGuide";
 import { ServerStatusLight } from "./ServerStatusLight";
-import { DASHBOARD_QUERY_KEY, fetchDashboard } from "@/lib/api";
+import { FyersConnectButton } from "./FyersConnect";
+import {
+  DASHBOARD_QUERY_KEY,
+  fetchDashboard,
+  fetchNiftyBoard,
+  NIFTY_PAPER_QUERY_KEY,
+  NIFTY_QUERY_KEY,
+} from "@/lib/api";
 
 const IST = "Asia/Kolkata";
+
+const CTRL =
+  "inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent disabled:opacity-70";
 
 function partsInIST(date = new Date()) {
   const fmt = new Intl.DateTimeFormat("en-GB", {
@@ -27,7 +38,7 @@ function partsInIST(date = new Date()) {
 /** NSE cash session: Mon–Fri 09:15–15:30 Asia/Kolkata */
 function isMarketOpen(date = new Date()) {
   const p = partsInIST(date);
-  const day = p.weekday; // Mon, Tue, ...
+  const day = p.weekday;
   if (day === "Sat" || day === "Sun") return false;
   const minutes = Number(p.hour) * 60 + Number(p.minute);
   return minutes >= 9 * 60 + 15 && minutes <= 15 * 60 + 30;
@@ -47,6 +58,12 @@ function formatAgo(seconds: number) {
   const rem = m % 60;
   return rem ? `${h}h ${rem}m ago` : `${h}h ago`;
 }
+
+const SUB_NAV = [
+  { to: "/", label: "Home", exact: true },
+  { to: "/nifty", label: "Market", exact: false },
+  { to: "/paper", label: "Paper Trade", exact: false },
+] as const;
 
 export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
   const queryClient = useQueryClient();
@@ -81,12 +98,18 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
     if (refreshing) return;
     setRefreshing(true);
     try {
-      // Soft refresh — SWR cache on server; update React Query board.
       try {
-        const next = await fetchDashboard(false);
+        const [next, nifty] = await Promise.all([
+          fetchDashboard(false),
+          fetchNiftyBoard(false).catch(() => null),
+        ]);
         queryClient.setQueryData(DASHBOARD_QUERY_KEY, next);
+        if (nifty) queryClient.setQueryData(NIFTY_QUERY_KEY, nifty);
+        void queryClient.invalidateQueries({ queryKey: NIFTY_PAPER_QUERY_KEY });
       } catch {
         await queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: NIFTY_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: NIFTY_PAPER_QUERY_KEY });
       }
     } finally {
       setLastUpdated(new Date());
@@ -102,86 +125,77 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-2 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 shrink">
-            <SaintLogo />
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+      <div className="mx-auto flex max-w-[1400px] flex-col px-4 sm:px-6">
+        <div className="flex items-center gap-2 py-3 sm:gap-3 sm:py-3.5">
+          <SaintLogo />
+
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <ServerStatusLight />
-            {/* Desktop: updated time beside controls */}
-            <div className="hidden flex-col items-end leading-tight sm:flex">
-              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {refreshing ? "Status" : "Last updated"}
-              </span>
-              {refreshing ? (
-                <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
-                  Refreshing…
-                </span>
-              ) : (
-                <span className="font-mono text-sm font-medium tabular-nums text-foreground">
-                  {updatedTimeStr}{" "}
-                  <span className="text-[10px] font-normal text-muted-foreground">
-                    IST · {lastUpdated ? formatAgo(secondsAgo) : ""}
-                  </span>
-                </span>
-              )}
-            </div>
+            <FyersConnectButton />
             <button
+              type="button"
               aria-label="Refresh data"
+              title="Refresh"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-70 sm:px-3"
+              className={`${CTRL} w-9`}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{refreshing ? "Refreshing" : "Refresh"}</span>
             </button>
-            <div
-              className={`flex items-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-medium sm:gap-2 sm:px-3 ${
-                open
-                  ? "border-transparent bg-bull-soft text-bull"
-                  : "border-border bg-muted text-muted-foreground"
-              }`}
-              title="NSE cash: Mon–Fri 09:15–15:30 IST"
-            >
-              {open ? (
-                <span className="live-dot" />
-              ) : (
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
-              )}
-              <span className="hidden sm:inline">{open ? "Market Open" : "Market Closed"}</span>
-              <span className="sm:hidden">{open ? "Open" : "Closed"}</span>
-            </div>
             <HelpGuide page={guide} />
             <button
+              type="button"
               aria-label="Toggle theme"
               onClick={toggleTheme}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-accent"
+              className={`${CTRL} w-9`}
             >
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           </div>
-        </div>
-        {/* Mobile: updated line under logo/actions so it never overlaps */}
-        <div className="flex items-center justify-between gap-2 sm:hidden">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            {refreshing ? "Status" : "Last updated"}
-          </span>
-          {refreshing ? (
-            <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gold" />
-              Refreshing…
-            </span>
-          ) : (
-            <span className="font-mono text-xs font-medium tabular-nums text-foreground">
-              {updatedTimeStr}{" "}
-              <span className="font-normal text-muted-foreground">
-                IST · {lastUpdated ? formatAgo(secondsAgo) : ""}
+
+          <div
+            className="flex shrink-0 items-center gap-2 pl-1 sm:pl-2"
+            title={open ? "NSE cash open" : "NSE cash closed · Mon–Fri 09:15–15:30 IST"}
+          >
+            <div className="flex flex-col items-end leading-tight">
+              <span className="hidden text-[9px] uppercase tracking-wider text-muted-foreground sm:inline">
+                {refreshing ? "Refreshing" : "Updated"}
               </span>
-            </span>
-          )}
+              <span className="font-mono text-[11px] font-medium tabular-nums text-foreground sm:text-xs">
+                {updatedTimeStr}
+                <span className="ml-1 hidden font-sans text-[10px] font-normal text-muted-foreground sm:inline">
+                  IST · {lastUpdated ? formatAgo(secondsAgo) : ""}
+                </span>
+              </span>
+            </div>
+            <span
+              className={`h-6 w-6 shrink-0 rounded-full ${
+                open ? "bg-bull" : "bg-muted-foreground/50"
+              } ${refreshing ? "animate-pulse" : ""}`}
+              aria-label={open ? "Market open" : "Market closed"}
+            />
+          </div>
         </div>
+
+        <nav className="-mx-1 flex items-center gap-0.5 overflow-x-auto border-t border-border/50 pb-2.5 pt-2 text-[11px] font-semibold uppercase tracking-wider sm:text-xs">
+          {SUB_NAV.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              activeOptions={item.exact ? { exact: true } : undefined}
+              activeProps={{
+                className:
+                  "rounded-md bg-muted px-3 py-1.5 text-foreground",
+              }}
+              inactiveProps={{
+                className:
+                  "rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground",
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </header>
   );
