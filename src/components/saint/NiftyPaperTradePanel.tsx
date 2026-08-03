@@ -56,13 +56,16 @@ function pnlClass(n?: number | null) {
   return n > 0 ? "text-bull" : "text-bear";
 }
 
+const FYERS_PAPER_REFRESH_MS = 2_000;
+
 export function NiftyPaperTradePanel() {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: NIFTY_PAPER_QUERY_KEY,
     queryFn: () => fetchNiftyPaperTrades(isLiveDataWindow()),
-    refetchInterval: () => (isLiveDataWindow() ? 60_000 : false),
-    staleTime: 15_000,
+    refetchInterval: () => (isLiveDataWindow() ? FYERS_PAPER_REFRESH_MS : false),
+    staleTime: 1_000,
+    placeholderData: (prev) => prev,
   });
 
   const tick = useMutation({
@@ -106,6 +109,9 @@ export function NiftyPaperTradePanel() {
   const lastTick = tick.data;
   const quote = lastTick?.quote;
   const signal = q.data?.signal;
+  const liveLtp = q.data?.liveLtp;
+  const posLtp = liveLtp?.positions?.[activeId];
+  const atmLtp = liveLtp?.atm;
   const bookCount = portfolio?.books ?? (strategyTabs.length || 3);
 
   return (
@@ -200,29 +206,47 @@ export function NiftyPaperTradePanel() {
 
         <Card className="shadow-sm">
           <CardHeader className="space-y-1 p-4 pb-2">
-            <CardTitle className="font-serif text-base font-normal">ATM quote</CardTitle>
+            <CardTitle className="font-serif text-base font-normal">Live LTP</CardTitle>
             <CardDescription className="text-[11px]">
-              Last tick · {quote?.source ?? "press Tick"}
+              {liveLtp?.source ?? atmLtp?.source ?? quote?.source ?? "Fyers · 2s refresh"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 p-4 pt-1 text-xs">
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Symbol</span>
-              <span className="max-w-[60%] truncate font-mono font-semibold">
-                {quote?.symbol ?? "—"}
-              </span>
+            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                ATM CE
+              </div>
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-mono text-lg font-semibold tabular-nums">
+                  {fmtNum(atmLtp?.ltp ?? quote?.ltp)}
+                </span>
+                <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                  strike {atmLtp?.strike ?? quote?.strike ?? "—"}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">CE LTP</span>
-              <span className="font-mono tabular-nums">{fmtNum(quote?.ltp)}</span>
-            </div>
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Strike / spot</span>
-              <span className="font-mono tabular-nums">
-                {quote?.strike ?? "—"} / {fmtNum(quote?.spot, 1)}
-              </span>
-            </div>
-            <div className="flex justify-between gap-2">
+            {open && posLtp ? (
+              <div className="rounded-lg border border-bull/30 bg-bull/5 px-3 py-2">
+                <div className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Open position · {open.strike ?? posLtp.strike ?? "—"}
+                </div>
+                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="font-mono text-lg font-semibold tabular-nums">
+                    {fmtNum(posLtp.ltp)}
+                  </span>
+                  <span className={`font-mono text-[11px] tabular-nums ${pnlClass(posLtp.pnlRs)}`}>
+                    {posLtp.pnlRs != null ? fmtRs(posLtp.pnlRs, 0) : "—"}
+                    {posLtp.pnlPct != null ? ` (${fmtNum(posLtp.pnlPct, 1)}%)` : ""}
+                  </span>
+                </div>
+                <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+                  {posLtp.symbol ?? open.symbol}
+                </div>
+              </div>
+            ) : open ? (
+              <p className="text-[10px] text-muted-foreground">Position LTP loading…</p>
+            ) : null}
+            <div className="flex justify-between gap-2 border-t border-border/50 pt-2">
               <span className="text-muted-foreground">weightUp signal</span>
               <span className="font-mono text-[10px] tabular-nums">
                 ↑3 {(lastTick?.rising3 ?? signal?.rising3) ? "yes" : "no"} · ↓4{" "}
@@ -237,14 +261,6 @@ export function NiftyPaperTradePanel() {
             {signal?.entryHint ? (
               <p className="text-[10px] leading-relaxed text-muted-foreground">{signal.entryHint}</p>
             ) : null}
-            <div className="flex justify-between gap-2">
-              <span className="text-muted-foreground">Open premium</span>
-              <span className="font-mono tabular-nums">
-                {bookWallet?.openMarginRs != null
-                  ? `₹${fmtNum(bookWallet.openMarginRs, 0)}`
-                  : "—"}
-              </span>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -275,15 +291,16 @@ export function NiftyPaperTradePanel() {
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Strike / margin</div>
+              <div className="text-muted-foreground">Strike LTP</div>
               <div className="font-mono tabular-nums">
-                {open.strike ?? "—"} · ₹{fmtNum(open.marginRs, 0)}
+                {fmtNum(posLtp?.ltp ?? summary?.markLtp)}{" "}
+                <span className="text-muted-foreground">· entry {fmtNum(open.entryPx)}</span>
               </div>
             </div>
             <div>
               <div className="text-muted-foreground">Unrealized</div>
-              <div className={`font-mono tabular-nums ${pnlClass(bookWallet?.unrealizedPnlRs)}`}>
-                {fmtRs(bookWallet?.unrealizedPnlRs, 0)}
+              <div className={`font-mono tabular-nums ${pnlClass(posLtp?.pnlRs ?? bookWallet?.unrealizedPnlRs)}`}>
+                {fmtRs(posLtp?.pnlRs ?? bookWallet?.unrealizedPnlRs, 0)}
               </div>
             </div>
           </CardContent>
@@ -311,6 +328,7 @@ export function NiftyPaperTradePanel() {
                   <TableHead className="text-[10px]">Entry</TableHead>
                   <TableHead className="text-[10px]">Exit</TableHead>
                   <TableHead className="text-[10px]">Strike</TableHead>
+                  <TableHead className="text-[10px]">LTP</TableHead>
                   <TableHead className="text-[10px]">Px in→out</TableHead>
                   <TableHead className="text-[10px]">Margin</TableHead>
                   <TableHead className="pr-4 text-[10px]">P&L</TableHead>
@@ -319,13 +337,13 @@ export function NiftyPaperTradePanel() {
               <TableBody>
                 {q.isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="px-4 py-6 text-xs text-muted-foreground">
+                    <TableCell colSpan={8} className="px-4 py-6 text-xs text-muted-foreground">
                       Loading…
                     </TableCell>
                   </TableRow>
                 ) : trades.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="px-4 py-6 text-xs text-muted-foreground">
+                    <TableCell colSpan={8} className="px-4 py-6 text-xs text-muted-foreground">
                       No paper trades in this bucket yet.
                     </TableCell>
                   </TableRow>
@@ -430,6 +448,12 @@ function TradeRow({ t }: { t: NiftyPaperTradeRow }) {
         <div className="truncate text-muted-foreground">{t.exitReason || "—"}</div>
       </TableCell>
       <TableCell className="font-mono text-[11px] tabular-nums">{t.strike ?? "—"}</TableCell>
+      <TableCell className={`font-mono text-[11px] tabular-nums ${t.status === "open" ? pnlClass(t.markPnlRs) : ""}`}>
+        {t.status === "open" ? fmtNum(t.markLtp) : "—"}
+        {t.status === "open" && t.markPnlRs != null ? (
+          <div className={`text-[10px] ${pnlClass(t.markPnlRs)}`}>{fmtRs(t.markPnlRs, 0)}</div>
+        ) : null}
+      </TableCell>
       <TableCell className="font-mono text-[11px] tabular-nums">
         {fmtNum(t.entryPx)}→{t.exitPx != null ? fmtNum(t.exitPx) : "—"}
       </TableCell>

@@ -509,6 +509,9 @@ export interface NiftyPaperTradeRow {
   pnlRs?: number | null;
   pnlPct?: number | null;
   marginRs?: number | null;
+  markLtp?: number | null;
+  markPnlRs?: number | null;
+  markPnlPct?: number | null;
 }
 
 export interface NiftyPaperStrategyMeta {
@@ -554,6 +557,8 @@ export interface NiftyPaperSummary {
   wallet?: NiftyPaperWallet;
   storage?: string;
   mongoReady?: boolean;
+  markLtp?: number | null;
+  markPnlRs?: number | null;
 }
 
 export interface NiftyPaperBucket {
@@ -575,6 +580,28 @@ export interface NiftyPaperBoardPayload {
     falling4?: boolean;
     entryHint?: string;
     barTf?: string;
+  };
+  liveLtp?: {
+    asOf?: string;
+    source?: string | null;
+    atm?: {
+      symbol?: string;
+      strike?: number;
+      ltp?: number;
+      spot?: number | null;
+      source?: string;
+    } | null;
+    positions?: Record<
+      string,
+      {
+        symbol?: string;
+        strike?: number | null;
+        ltp?: number | null;
+        entryPx?: number;
+        pnlRs?: number | null;
+        pnlPct?: number | null;
+      }
+    >;
   };
   /** Back-compat (first bucket) */
   summary?: NiftyPaperSummary;

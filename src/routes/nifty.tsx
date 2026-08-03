@@ -33,7 +33,7 @@ import {
 import { isLiveDataWindow, LIVE_DATA_LABEL } from "@/lib/market-hours";
 
 const REFRESH_MS = 60_000;
-const FYERS_LIVE_REFRESH_MS = 1_000;
+const FYERS_LIVE_REFRESH_MS = 2_000;
 
 export const Route = createFileRoute("/nifty")({
   loader: () => null,
