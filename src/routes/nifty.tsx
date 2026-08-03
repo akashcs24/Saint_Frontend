@@ -33,6 +33,7 @@ import {
 import { isLiveDataWindow, LIVE_DATA_LABEL } from "@/lib/market-hours";
 
 const REFRESH_MS = 60_000;
+const FYERS_LIVE_REFRESH_MS = 1_000;
 
 export const Route = createFileRoute("/nifty")({
   loader: () => null,
@@ -473,6 +474,7 @@ function NiftyPage() {
     refetchInterval: (query) => {
       const d = query.state.data;
       if (d?.building || d?.stale || (d && !d.breadth?.ready)) return 5_000;
+      if (d?.fyersConnected && d?.liveDataPaused !== true) return FYERS_LIVE_REFRESH_MS;
       const paused = d?.liveDataPaused;
       if (paused === true) return false;
       if (paused === false) return REFRESH_MS;
