@@ -127,9 +127,9 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1400px] flex-col px-4 sm:px-6">
         <div className="flex items-center gap-2 py-3 sm:gap-3 sm:py-3.5">
-          <SaintLogo />
+          <SaintLogo className="shrink-0" />
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <ServerStatusLight />
             <FyersConnectButton />
             <button
@@ -154,7 +154,7 @@ export function Header({ guide = "dashboard" }: { guide?: HelpGuidePage }) {
           </div>
 
           <div
-            className="flex shrink-0 items-center gap-2 pl-1 sm:pl-2"
+            className="hidden shrink-0 items-center gap-2 pl-1 sm:flex sm:pl-2"
             title={open ? "NSE cash open" : "NSE cash closed · Mon–Fri 09:15–15:30 IST"}
           >
             <div className="flex flex-col items-end leading-tight">
