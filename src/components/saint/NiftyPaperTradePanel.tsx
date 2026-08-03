@@ -19,6 +19,7 @@ import {
   type NiftyPaperTradeRow,
   type NiftyPaperWallet,
 } from "@/lib/api";
+import { isLiveDataWindow } from "@/lib/market-hours";
 
 function fmtNum(n: number | null | undefined, digits = 2) {
   if (n == null || Number.isNaN(n)) return "—";
@@ -59,8 +60,8 @@ export function NiftyPaperTradePanel() {
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: NIFTY_PAPER_QUERY_KEY,
-    queryFn: fetchNiftyPaperTrades,
-    refetchInterval: 60_000,
+    queryFn: () => fetchNiftyPaperTrades(isLiveDataWindow()),
+    refetchInterval: () => (isLiveDataWindow() ? 60_000 : false),
     staleTime: 15_000,
   });
 
@@ -104,6 +105,7 @@ export function NiftyPaperTradePanel() {
   const open = summary?.open ?? trades.find((t) => t.status === "open") ?? null;
   const lastTick = tick.data;
   const quote = lastTick?.quote;
+  const signal = q.data?.signal;
   const bookCount = portfolio?.books ?? (strategyTabs.length || 3);
 
   return (
@@ -120,8 +122,8 @@ export function NiftyPaperTradePanel() {
             <div className="space-y-1">
               <CardTitle className="font-serif text-base font-normal">Paper trade</CardTitle>
               <CardDescription className="max-w-xl text-[11px] leading-relaxed">
-                Decline ×4 and SL/TSL enter on weightUp rising ×3. Sync cross enters when
-                cross.diffPp &gt; 0 and exits when &lt; 0. Each tab is its own ₹1L book.
+                Decline ×4 and SL/TSL enter on <strong>3 consecutive 5m weightUp increases</strong> — not
+                adv/dec alone. Sync cross uses cross.diffPp. Each tab is its own ₹1L book.
               </CardDescription>
             </div>
             <button
@@ -223,9 +225,18 @@ export function NiftyPaperTradePanel() {
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">weightUp signal</span>
               <span className="font-mono text-[10px] tabular-nums">
-                ↑3 {lastTick?.rising3 ? "yes" : "no"} · ↓4 {lastTick?.falling4 ? "yes" : "no"}
+                ↑3 {(lastTick?.rising3 ?? signal?.rising3) ? "yes" : "no"} · ↓4{" "}
+                {(lastTick?.falling4 ?? signal?.falling4) ? "yes" : "no"}
               </span>
             </div>
+            {signal?.weightUpSeries?.length ? (
+              <div className="rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 font-mono text-[10px] tabular-nums text-muted-foreground">
+                5m weightUp: {signal.weightUpSeries.join(" → ")}
+              </div>
+            ) : null}
+            {signal?.entryHint ? (
+              <p className="text-[10px] leading-relaxed text-muted-foreground">{signal.entryHint}</p>
+            ) : null}
             <div className="flex justify-between gap-2">
               <span className="text-muted-foreground">Open premium</span>
               <span className="font-mono tabular-nums">

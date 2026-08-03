@@ -568,6 +568,14 @@ export interface NiftyPaperBoardPayload {
   wallet?: NiftyPaperWallet;
   storage?: string;
   mongoReady?: boolean;
+  signal?: {
+    weightUpSeries?: number[];
+    bucketLabels?: (string | null | undefined)[];
+    rising3?: boolean;
+    falling4?: boolean;
+    entryHint?: string;
+    barTf?: string;
+  };
   /** Back-compat (first bucket) */
   summary?: NiftyPaperSummary;
   trades?: NiftyPaperTradeRow[];
@@ -605,8 +613,9 @@ export async function fetchNiftyBoard(force = false): Promise<NiftyBoardPayload>
   return apiGet<NiftyBoardPayload>(`/api/nifty${q}`, undefined, force ? 180_000 : 90_000);
 }
 
-export async function fetchNiftyPaperTrades(): Promise<NiftyPaperBoardPayload> {
-  return apiGet("/api/nifty/paper-trades", undefined, 30_000);
+export async function fetchNiftyPaperTrades(evaluate = false): Promise<NiftyPaperBoardPayload> {
+  const q = evaluate ? "?evaluate=true" : "";
+  return apiGet(`/api/nifty/paper-trades${q}`, undefined, 45_000);
 }
 
 export async function tickNiftyPaperTrades(force = true): Promise<NiftyPaperTickPayload> {
