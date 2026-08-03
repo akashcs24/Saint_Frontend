@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   Bar,
@@ -482,6 +482,7 @@ function NiftyPage() {
     },
     staleTime: 30_000,
     retry: 2,
+    placeholderData: keepPreviousData,
   });
 
   const data = q.data;
@@ -511,14 +512,12 @@ function NiftyPage() {
           </Card>
         ) : data ? (
           <>
-            {(data.building || data.stale || !data.breadth?.ready) && (
+            {data.building ? (
               <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
-                {data.building
-                  ? "Building market board on the server (free Render can take 1–2 min on cold start)…"
-                  : data.error || "Refreshing market data…"}
+                Building market board on the server (free Render can take 1–2 min on cold start)…
               </p>
-            )}
-            <NiftyCards data={data} refreshing={q.isFetching} />
+            ) : null}
+            <NiftyCards data={data} />
           </>
         ) : null}
       </main>
@@ -526,7 +525,7 @@ function NiftyPage() {
   );
 }
 
-function NiftyCards({ data, refreshing }: { data: NiftyBoardPayload; refreshing: boolean }) {
+function NiftyCards({ data }: { data: NiftyBoardPayload }) {
   const idx = data.index;
   const br = data.breadth;
   const oi = data.optionOi;
@@ -541,10 +540,6 @@ function NiftyCards({ data, refreshing }: { data: NiftyBoardPayload; refreshing:
 
   return (
     <div className="flex flex-col gap-3">
-      {refreshing ? (
-        <p className="px-0.5 text-[10px] text-muted-foreground">Refreshing…</p>
-      ) : null}
-
       {data.liveDataPaused || data.marketHours === false ? (
         <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
           Live refresh paused after hours. Resumes {data.marketHoursLabel || LIVE_DATA_LABEL}. Showing last
